@@ -3,7 +3,7 @@ Pequeña aplicación de escritorio (Tkinter + ttkbootstrap) para generar un **Í
 
 > **Estado**: MVP funcional en `main`. Próximas mejoras en ramas de feature.
 > **Descarga**: por ahora no hay binarios públicos; compila localmente (ver Build.exe)
-> **English?** See [README.en.md](./README.en.MD)
+> **English?** See [README.en.md](./README.en.md)
 
 ---
 
