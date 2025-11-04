@@ -20,7 +20,7 @@ class App:
     def __init__(self, root):
         self.root = root
         self.root.title(f"{__app_name__} v{__version__} - Índice de Documentos")
-        self.root.geometry("760x560")
+        self.root.geometry("820x720")
 
         if USING_TTKB:
             tb.Style(theme="flatly")
@@ -30,6 +30,10 @@ class App:
         self.export_docx_var = tk.BooleanVar(value=True)
         self.export_pdf_var = tk.BooleanVar(value=True)
         self.output_basename = tk.StringVar(value="Indice_Documentos")  # sin tilde por si acaso
+        self.doc_title_var = tk.StringVar(value="Índice de Documentos")
+        self.show_title_var = tk.BooleanVar(value=True)
+        self.show_date_var = tk.BooleanVar(value=True)
+        self.title_align_var = tk.StringVar(value="center")
 
         self.build_ui()
 
@@ -57,6 +61,32 @@ class App:
         list_frame.pack(fill="both", expand=True, pady=(8, 8))
         self.listbox = tk.Listbox(list_frame, height=14)
         self.listbox.pack(fill="both", expand=True, padx=8, pady=8)
+
+        # Header panel
+        header = tb.LabelFrame(frm, text="Cabecera del índice")
+        header.pack(fill="x", pady=(8, 8))
+
+        # First row: editable title + show/hide
+        row1 = tb.Frame(header); row1.pack(fill="x", padx=8, pady=6)
+        tb.Label(row1, text="Título:").pack(side="left", padx=(0, 8))
+        tb.Entry(row1, textvariable=self.doc_title_var).pack(side="left", fill="x", expand=True)
+        tb.Checkbutton(
+            row1, text="Mostrar título", variable=self.show_title_var,
+            bootstyle=SUCCESS if USING_TTKB else None
+        ).pack(side="left", padx=(12, 0))
+
+        # Secod row: include date + alignment
+        row2 = tb.Frame(header); row2.pack(fill="x", padx=8, pady=6)
+        tb.Checkbutton(
+            row2, text="Incluir fecha (hoy)", variable=self.show_date_var,
+            bootstyle=SUCCESS if USING_TTKB else None
+        ).pack(side="left")
+        tb.Label(row2, text="Alineación título:").pack(side="left", padx=(16, 8))
+        align = tb.Combobox(
+            row2, state="readonly", values=["left", "center", "right"],
+            textvariable=self.title_align_var, width=10
+        )
+        align.pack(side="left")
 
         # Export options
         opts = tb.Frame(frm); opts.pack(fill="x", pady=(8, 8))
@@ -116,7 +146,7 @@ class App:
     def generate_index(self):
         path = Path(self.directory.get().strip())
         if not path.exists() or not path.is_dir():
-            messagebox.showwarning("Carpeta no válida", "Selecciona una carpeta válida.")  # <- fix
+            messagebox.showwarning("Carpeta no válida", "Selecciona una carpeta válida.")
             return
 
         if not (self.export_docx_var.get() or self.export_pdf_var.get()):
@@ -131,19 +161,30 @@ class App:
         base = (self.output_basename.get().strip() or "Indice_Documentos")
         generated = []
 
+        header_kwargs = dict(
+            title_text=(self.doc_title_var.get().strip() or "Índice de Documentos"),
+            show_title=bool(self.show_title_var.get()),
+            show_date=bool(self.show_date_var.get()),
+            title_align=self.title_align_var.get(),
+        )
+
         try:
             if self.export_docx_var.get():
                 out_docx = path / f"{base}.docx"
-                export_docx(titles, out_docx)
+                export_docx(titles, out_docx, **header_kwargs)
                 generated.append(out_docx)
 
             if self.export_pdf_var.get():
                 out_pdf = path / f"{base}.pdf"
-                export_pdf(titles, out_pdf)
+                export_pdf(titles, out_pdf, **header_kwargs)
                 generated.append(out_pdf)
 
+        except ImportError as e:
+            messagebox.showerror("Dependencia faltante", str(e))
+            self.status.config(text="Falta una dependencia.")
+            return
         except Exception as e:
-            messagebox.showerror("Error de exportación", f"Ocurrió un error exportando el índice: \n{e}")
+            messagebox.showerror("Error de exportación", f"Ocurrió un error exportando el índice:\n{e}")
             self.status.config(text="Error durante la exportación.")
             return
 
@@ -153,6 +194,6 @@ class App:
 def main():
     root = tk.Tk()
     if USING_TTKB:
-        tb.Style(theme="flatly")  # <- fix
+        tb.Style(theme="flatly") 
     App(root)
     root.mainloop()
