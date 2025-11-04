@@ -52,7 +52,15 @@ def export_docx(
     doc.save(out_path)
 
 # ---- PDF ----
-def export_pdf(titles: List[str], out_path: Path) -> None:
+def export_pdf(
+    titles: List[str], 
+    out_path: Path,
+    *,
+    title_text: str = "Índice de Documentos",
+    show_title: bool = True,
+    show_date: bool = True,
+    title_align: str = "center"
+) -> None:
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfgen import canvas
     from reportlab.lib.units import cm
@@ -64,17 +72,34 @@ def export_pdf(titles: List[str], out_path: Path) -> None:
     left_margin = 2.5 * cm
     y = height - top_margin
 
-    c.setFont("Helvetica-Bold", 18)
-    c.drawCentredString(width / 2, y, "Índice de Documentos")
-    y -= 0.9 * cm
+    def draw_title_line(text: str, size: int = 18):
+        c.setFont("Helvetica-Bold", size)
+        if title_align == "left":
+            c.drawString(left_margin, y, text)
+        elif title_align == "right":
+            c.drawString(width - left_margin, y, text)
+        else:
+            c.drawCentredString(width / 2, y, text)
 
-    c.setFont("Helvetica-Oblique", 10)
-    c.drawCentredString(width / 2, y, datetime.date.today().strftime("%d/%m/%Y"))
-    y -= 1.0 * cm
+    def draw_date_line(text: str, size: int = 10):
+        c.setFont("Helvetica-Oblique", size)
+        if title_align == "left":
+            c.drawString(left_margin, y, text)
+        elif title_align == "right":
+            c.drawString(width - left_margin, y, text)
+        else:
+            c.drawCentredString(width / 2, y, text)
+    
+    if show_title:
+        draw_date_line(title_text, 18)
+        y -= 0.9 * cm
+
+    if show_date:
+        draw_date_line(datetime.date.today().strftime("%d/%m/%Y"), 10)
+        y -= 1.0 * cm
 
     c.setFont("Helvetica", 11)
     line_height = 0.6 * cm
-
     for t in titles:
         if y < 2.5 * cm:
             c.showPage()
