@@ -77,7 +77,7 @@ def export_pdf(
         if title_align == "left":
             c.drawString(left_margin, y, text)
         elif title_align == "right":
-            c.drawString(width - left_margin, y, text)
+            c.drawRightString(width - left_margin, y, text)
         else:
             c.drawCentredString(width / 2, y, text)
 
@@ -86,12 +86,12 @@ def export_pdf(
         if title_align == "left":
             c.drawString(left_margin, y, text)
         elif title_align == "right":
-            c.drawString(width - left_margin, y, text)
+            c.drawRightString(width - left_margin, y, text)
         else:
             c.drawCentredString(width / 2, y, text)
     
     if show_title:
-        draw_date_line(title_text, 18)
+        draw_title_line(title_text, 18)
         y -= 0.9 * cm
 
     if show_date:
