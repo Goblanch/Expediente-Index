@@ -46,7 +46,7 @@ def export_docx(
     doc.add_paragraph()
 
     for t in titles:
-        para = doc.add_paragraph(f"- {t}")
+        para = doc.add_paragraph(f"{t}")
         para.paragraph_format.space_after = Pt(4)
 
     doc.save(out_path)
@@ -105,7 +105,7 @@ def export_pdf(
             c.showPage()
             y = height - top_margin
             c.setFont("Helvetica", 11)
-        c.drawString(left_margin, y, f"- {t}")
+        c.drawString(left_margin, y, f"{t}")
         y -= line_height
 
     c.showPage()

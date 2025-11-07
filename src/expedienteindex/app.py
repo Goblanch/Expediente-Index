@@ -6,6 +6,9 @@ from .indexing import list_pdf_titles
 from .exporters import export_docx, export_pdf
 from . import __app_name__, __version__
 
+# TODO: quitar el guión en el formato del documento.
+# TODO: añadir selección de fuente con las fuentes del sistema.
+
 # Try modern UI with ttkbootstrap, if not available, use classic ttk
 try:
     import ttkbootstrap as tb
