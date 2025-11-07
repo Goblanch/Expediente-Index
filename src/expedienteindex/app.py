@@ -6,8 +6,9 @@ from .indexing import list_pdf_titles
 from .exporters import export_docx, export_pdf
 from . import __app_name__, __version__
 
-# TODO: quitar el guión en el formato del documento.
 # TODO: añadir selección de fuente con las fuentes del sistema.
+# TODO: añadir selección de carpeta de destino. Por defecto: la misma dónde están todos los docs.
+# TODO: cambiar settings por defecto: fecha desactivado, alineación izquierda y nombre de salida 00Nombre del doc.
 
 # Try modern UI with ttkbootstrap, if not available, use classic ttk
 try:
@@ -32,11 +33,11 @@ class App:
         self.directory = tk.StringVar()
         self.export_docx_var = tk.BooleanVar(value=True)
         self.export_pdf_var = tk.BooleanVar(value=True)
-        self.output_basename = tk.StringVar(value="Indice_Documentos")  # sin tilde por si acaso
+        self.output_basename = tk.StringVar(value="00Índice_Documentos")  # sin tilde por si acaso
         self.doc_title_var = tk.StringVar(value="Índice de Documentos")
         self.show_title_var = tk.BooleanVar(value=True)
-        self.show_date_var = tk.BooleanVar(value=True)
-        self.title_align_var = tk.StringVar(value="center")
+        self.show_date_var = tk.BooleanVar(value=False)
+        self.title_align_var = tk.StringVar(value="left")
 
         self.build_ui()
 
