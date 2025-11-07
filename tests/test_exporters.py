@@ -26,8 +26,11 @@ def _read_docx_texts(doc_path: Path):
     doc = _DocxReader(str(doc_path))
     return [p.text for p in doc.paragraphs]
 
+def _has_entry(texts, entry: str) -> bool:
+    return any(t.strip() == entry or t.strip() == f"- {entry}" for t in texts)
+
 @pytest.mark.skipif(not DOCX_AVAILABLE, reason="python-docx not available")
-def test_docx_defaults_show_title_and_date(tmp_path: Path):
+def test_docx_exporter_defaults_show_title_and_date(tmp_path: Path):
     titles = ["A", "B"]
     out = tmp_path / "idx.docx"
     export_docx(titles, out)
@@ -38,8 +41,8 @@ def test_docx_defaults_show_title_and_date(tmp_path: Path):
 
     assert any(t == "Índice de Documentos" for t in texts)
     assert any(today in t for t in texts)
-    assert any("- A" in t for t in texts)
-    assert any("- B" in t for t in texts)
+    assert _has_entry(texts, "A")
+    assert _has_entry(texts, "B")
 
 @pytest.mark.skipif(not DOCX_AVAILABLE, reason="python-docx not available")
 def test_docx_custom_title_no_date_and_alignment_right(tmp_path: Path):
@@ -82,10 +85,10 @@ def test_docx_hide_title_only_date_visible(tmp_path: Path):
 
     assert all("Índice de Documentos" not in t for t in texts)
     assert any(today in t for t in texts)
-    assert any("- DocX" in t for t in texts)
+    assert _has_entry(texts, "DocX")
 
 @pytest.mark.skipif(not PYPDF_AVAILABLE, reason="pypdf not available")
-def test_pdf_defaults_show_title_and_date(tmp_path: Path):
+def test_pdf_exporter_defaults_show_title_and_date(tmp_path: Path):
     titles = ["A", "B"]
     out = tmp_path / "idx.pdf"
     export_pdf(titles, out)
