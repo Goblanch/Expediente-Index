@@ -7,8 +7,6 @@ from .exporters import export_docx, export_pdf
 from . import __app_name__, __version__
 
 # TODO: añadir selección de fuente con las fuentes del sistema.
-# TODO: añadir selección de carpeta de destino. Por defecto: la misma dónde están todos los docs.
-# TODO: cambiar settings por defecto: fecha desactivado, alineación izquierda y nombre de salida 00Nombre del doc.
 
 # Try modern UI with ttkbootstrap, if not available, use classic ttk
 try:
@@ -20,11 +18,22 @@ except Exception:
     USING_TTKB = False
     PRIMARY = "primary"; SUCCESS = "success"; INFO = "info"
 
+def _system_fonts() -> list[str]:
+    try:
+        from matplotlib import font_manager
+        names = sorted({f.name for f in font_manager.fontManager.ttflist})
+        preferred = ["Calibri", "Times New Roman", "Arial", "Helvetica", "Courier New"]
+        ordered = [n for n in preferred if n in names]
+        others = [n for n in names if n not in ordered]
+        return ordered + others
+    except Exception:
+        return ["Helvetica", "Times-Roman", "Courier"]
+
 class App:
     def __init__(self, root):
         self.root = root
         self.root.title(f"{__app_name__} v{__version__} - Índice de Documentos")
-        self.root.geometry("820x720")
+        self.root.geometry("880x780")
 
         if USING_TTKB:
             tb.Style(theme="flatly")
@@ -39,6 +48,9 @@ class App:
         self.show_date_var = tk.BooleanVar(value=False)
         self.title_align_var = tk.StringVar(value="left")
         self.output_dir = tk.StringVar(value="")
+        self.font_family_var = tk.StringVar(value="Calibri")
+        self.title_size_var = tk.IntVar(value=18)
+        self.body_size_var = tk.IntVar(value=11)
 
         self.build_ui()
 
@@ -100,6 +112,22 @@ class App:
             textvariable=self.title_align_var, width=10
         )
         align.pack(side="left")
+
+        # Font and sizes
+        fonts_row = tb.Frame(header); fonts_row.pack(fill="x", padx=8, pady=6)
+        tb.Label(fonts_row, text="Fuente:").pack(side="left", padx=(0, 8))
+        fonts = _system_fonts()
+        font_cb = tb.Combobox(fonts_row, state="readonly", values=fonts, textvariable=self.font_family_var, width=30)
+        font_cb.pack(side="left")
+
+        sizes_row = tb.Frame(header); sizes_row.pack(fill="x", padx=8, pady=6)
+        tb.Label(sizes_row, text="Tamaño título:").pack(side="left", padx=(0, 8))
+        title_size = tb.Spinbox(sizes_row, from_=9, to=96, textvariable=self.title_size_var, width=6)
+        title_size.pack(side="left")
+
+        tb.Label(sizes_row, text="Tamaño cuerpo:").pack(side="left", padx=(16, 8))
+        body_size = tb.Spinbox(sizes_row, from_=6, to=48, textvariable=self.body_size_var, width=6)
+        body_size.pack(side="left")
 
         # Export options
         opts = tb.Frame(frm); opts.pack(fill="x", pady=(8, 8))
@@ -194,6 +222,9 @@ class App:
             show_title=bool(self.show_title_var.get()),
             show_date=bool(self.show_date_var.get()),
             title_align=self.title_align_var.get(),
+            font_name=self.font_family_var.get(),
+            title_font_size=int(self.title_size_var.get()),
+            body_font_size=int(self.body_size_var.get())
         )
 
         try:
