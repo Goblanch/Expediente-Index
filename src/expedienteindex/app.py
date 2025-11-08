@@ -145,7 +145,10 @@ class App:
             self.output_dir.set(chosen)
 
     def clear_output_dir(self):
-        self.output_dir.set("")
+        if self.directory.get().strip():
+            self.output_dir.set(self.directory.get())
+        else:
+            self.output_dir.set("")
 
     def scan_folder(self):
         self.listbox.delete(0, tk.END)
