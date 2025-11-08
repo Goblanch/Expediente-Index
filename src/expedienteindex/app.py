@@ -38,6 +38,7 @@ class App:
         self.show_title_var = tk.BooleanVar(value=True)
         self.show_date_var = tk.BooleanVar(value=False)
         self.title_align_var = tk.StringVar(value="left")
+        self.output_dir = tk.StringVar(value="")
 
         self.build_ui()
 
@@ -59,6 +60,14 @@ class App:
             row, text="Elegir...", command=self.choose_directory,
             bootstyle=PRIMARY if USING_TTKB else None
         ).pack(side="left", padx=(8, 0))
+
+        # Output folder
+        outrow = tb.Frame(frm); outrow.pack(fill="x", pady=(0, 8))
+        tb.Label(outrow, text="Carpeta de salida (opcional):").pack(side="left", padx=(0, 8))
+        tb.Entry(outrow, textvariable=self.output_dir).pack(side="left", fill="x", expand=True)
+        tb.Button(outrow, text="Elegir...", command=self.choose_output_dir,
+                  bootstyle=INFO if USING_TTKB else None).pack(side="left", padx=(8, 0))
+        tb.Button(outrow, text="Restablecer", command=self.clear_output_dir).pack(side="left", padx=(8, 0))
 
         # Detected list
         list_frame = tb.Labelframe(frm, text="Documentos PDF detectados")
@@ -126,7 +135,20 @@ class App:
         chosen = filedialog.askdirectory(title="Selecciona la carpeta con los PDFs")
         if chosen:
             self.directory.set(chosen)
+            if not self.output_dir.get().strip():
+                self.output_dir.set(chosen)
             self.scan_folder()
+
+    def choose_output_dir(self):
+        chosen = filedialog.askdirectory(title="Selecciona la carpeta de salida (opcional)")
+        if chosen:
+            self.output_dir.set(chosen)
+
+    def clear_output_dir(self):
+        if self.directory.get().strip():
+            self.output_dir.set(self.directory.get())
+        else:
+            self.output_dir.set("")
 
     def scan_folder(self):
         self.listbox.delete(0, tk.END)
@@ -148,8 +170,8 @@ class App:
         self.status.config(text=f"Encontrados {len(titles)} PDFs.")
 
     def generate_index(self):
-        path = Path(self.directory.get().strip())
-        if not path.exists() or not path.is_dir():
+        src_dir = Path(self.directory.get().strip())
+        if not src_dir.exists() or not src_dir.is_dir():
             messagebox.showwarning("Carpeta no válida", "Selecciona una carpeta válida.")
             return
 
@@ -157,10 +179,12 @@ class App:
             messagebox.showwarning("Seleccione formato", "Selecciona al menos un formato (Word o PDF).")
             return
 
-        titles, pdfs = list_pdf_titles(path)
+        titles, pdfs = list_pdf_titles(src_dir)
         if not titles:
             messagebox.showinfo("Sin PDFs", "No se encontraron archivos .pdf en la carpeta seleccionada.")
             return
+        
+        dest_dir = self._resolve_output_dir(src_dir)
 
         base = (self.output_basename.get().strip() or "Indice_Documentos")
         generated = []
@@ -174,12 +198,12 @@ class App:
 
         try:
             if self.export_docx_var.get():
-                out_docx = path / f"{base}.docx"
+                out_docx = dest_dir / f"{base}.docx"
                 export_docx(titles, out_docx, **header_kwargs)
                 generated.append(out_docx)
 
             if self.export_pdf_var.get():
-                out_pdf = path / f"{base}.pdf"
+                out_pdf = dest_dir / f"{base}.pdf"
                 export_pdf(titles, out_pdf, **header_kwargs)
                 generated.append(out_pdf)
 
@@ -193,7 +217,13 @@ class App:
             return
 
         messagebox.showinfo("Índice creado", "Generado:\n" + "\n".join(str(p) for p in generated))
-        self.status.config(text="Índice creado correctamente.")
+        self.status.config(text=f"Índice creado correctamente en: {dest_dir}")
+
+    def _resolve_output_dir(self, src_dir: Path) -> Path:
+        chosen = self.output_dir.get().strip()
+        dest = Path(chosen) if chosen else src_dir
+        dest.mkdir(parents=True, exist_ok=True)
+        return dest
 
 def main():
     root = tk.Tk()
