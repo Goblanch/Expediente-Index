@@ -7,8 +7,6 @@ from .exporters import export_docx, export_pdf
 from . import __app_name__, __version__
 
 # TODO: añadir selección de fuente con las fuentes del sistema.
-# TODO: añadir selección de carpeta de destino. Por defecto: la misma dónde están todos los docs.
-# TODO: cambiar settings por defecto: fecha desactivado, alineación izquierda y nombre de salida 00Nombre del doc.
 
 # Try modern UI with ttkbootstrap, if not available, use classic ttk
 try:
