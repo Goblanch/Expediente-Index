@@ -15,8 +15,14 @@ _DNI_RE = re.compile(r"\b(?P<dni>\d{8})(?P<letter>[A-HJ-NP-TV-Z])\b", re.IGNOREC
 _NIE_RE = re.compile(r"\b(?P<nie>[XYZxyz])\d{7}(?P<letter>[A-HJ-NP-TV-Z])\b", re.IGNORECASE)
 
 # --- emails y teléfonos
-_EMAIL_RE = re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[A-Za-z]{2,}\b")
-_PHONE_RE = re.compile(r"\b(?:\+?\d{1,3}[\s-]?)?(?:\d[\s-]?){7,}\d\b")
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+_PHONE_RE = re.compile(r"""
+    (?<!\w)                              # límite izquierdo laxo (no letra/num)
+    (?:\+\d{1,3}[\s\-.]?)?               # prefijo internacional opcional (+1, +34, +351, etc.)
+    (?:\(?\d{1,4}\)?[\s\-.]?){2,6}       # 2 a 6 grupos de 1-4 dígitos con separadores
+    \d                                   # termina en dígito
+    (?!\w)                               # límite derecho laxo
+""", re.VERBOSE)
 
 @dataclass
 class DetectedEntity:
@@ -164,6 +170,6 @@ class NEREngine:
         return results
 
 # Test cases
-TEXTO = "El Sr. Iván Castillo Mendoza con DNI 01647550Z es culpable de estafar a Empresa S.L. con número de teléfono 68639912 y correo correo@gmail.com"
+TEXTO = "El Sr. Iván Castillo Mendoza con DNI 01647550Z es culpable de estafar a Empresa S.L. con número de teléfono +51 68639912 y correo correo@gmail.com"
 ner = NEREngine()
-print(ner.detect(TEXTO))
+print(ner.detect(TEXTO, include_email_phone=True))
