@@ -3,3 +3,4 @@ python-docx>=1.1.2
 reportlab>=4.2.0
 matplotlib>=3.5
 spacy>=3.7
+# Modelo español (el wheel se instala aparte con: python -m spacy download es_core_news_md)
