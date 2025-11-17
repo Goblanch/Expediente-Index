@@ -170,6 +170,6 @@ class NEREngine:
         return results
 
 # Test cases
-TEXTO = "El Sr. Iván Castillo Mendoza con DNI 01647550Z es culpable de estafar a Empresa S.L. con número de teléfono +51 68639912 y correo correo@gmail.com"
-ner = NEREngine()
-print(ner.detect(TEXTO, include_email_phone=True))
+# TEXTO = "El Sr. Iván Castillo Mendoza con DNI 01647550Z es culpable de estafar a Empresa S.L. con número de teléfono +51 68639912 y correo correo@gmail.com"
+# ner = NEREngine()
+# print(ner.detect(TEXTO, include_email_phone=True))
