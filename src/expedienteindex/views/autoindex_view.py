@@ -2,9 +2,9 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from pathlib import Path
 
-from expedienteindex.indexing import list_pdf_titles
-from expedienteindex.exporters import export_docx, export_pdf
-from . import __app_name__, __version__
+from ..indexing import list_pdf_titles
+from ..exporters import export_docx, export_pdf
+from .. import __app_name__, __version__
 
 # TODO: añadir selección de fuente con las fuentes del sistema.
 
