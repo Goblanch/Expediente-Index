@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from pathlib import Path
 
+from .nav import back_to_launcher
 from ..indexing import list_pdf_titles
 from ..exporters import export_docx, export_pdf
 from .. import __app_name__, __version__
@@ -37,6 +38,11 @@ class AutoIndexView:
 
         if USING_TTKB:
             tb.Style(theme="flatly")
+
+        # --- Backbar (volver al launcher)
+        bar = tb.Frame(self.root, padding=(10, 6))
+        bar.pack(fill="x")
+        tb.Button(bar, text="← Volver", command=lambda: back_to_launcher(self.root)).pack(side="left")
 
         # State/UI vars
         self.directory = tk.StringVar()
@@ -256,9 +262,4 @@ class AutoIndexView:
         dest.mkdir(parents=True, exist_ok=True)
         return dest
 
-def main():
-    root = tk.Tk()
-    if USING_TTKB:
-        tb.Style(theme="flatly") 
-    App(root)
-    root.mainloop()
+
