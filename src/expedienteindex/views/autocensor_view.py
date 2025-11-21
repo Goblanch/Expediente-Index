@@ -2,15 +2,16 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from pathlib import Path
 from collections import Counter, defaultdict
+import re
 
 try:
     import ttkbootstrap as tb
     USING_TTKB = True
-    from ttkbootstrap import PRIMARY, SUCCESS, INFO
+    from ttkbootstrap.constants import PRIMARY, SUCCESS, INFO
 except Exception:
     import tkinter.ttk as tb
     USING_TTKB = False
-    PRIMATY = "primary"; SUCCESS = "success"; INFO = "info"
+    PRIMARY = "primary"; SUCCESS = "success"; INFO = "info"
 
 from .nav import back_to_launcher
 from ..nlp.ner import NEREngine, DetectedEntity
@@ -23,8 +24,8 @@ LABEL_NAMES = {
     "LOC": "Lugar",
     "GPE": "Entidad geopolítica",
     "MISC": "Miscelánea",
-    "DATE": "Fehca",
-    "HORA": "Hora",
+    "DATE": "Fecha",
+    "TIME": "Hora",
     "NORP": "Grupo/Nacionalidad",
     "CARDINAL": "Número (cardinal)",
     "QUANTITY": "Cantidad",
@@ -56,6 +57,8 @@ class AutoCensorView:
         self.detected: list[DetectedEntity] = []
         self.ignored: set[str] = set()
         self.manual_terms: list[str] = []
+
+        self._last_text: str = ""
 
         self._build_ui()
 
@@ -116,7 +119,7 @@ class AutoCensorView:
 
         # Acciones
         actions = tb.Frame(frm); actions.pack(fill="x", pady=(10, 0))
-        tb.Button(actions, text="Analilzar", command=self.analyze, bootstyle=INFO if USING_TTKB else None).pack(side="left")
+        tb.Button(actions, text="Analizar", command=self.analyze, bootstyle=INFO if USING_TTKB else None).pack(side="left")
         tb.Button(actions, text="Ignorar seleccionado", command=self.ignore_selected).pack(side="left", padx=8)
         tb.Button(actions, text="Limpiar ignorados", command=self.clear_ignored).pack(side="left")
 
@@ -131,7 +134,7 @@ class AutoCensorView:
 
     def analyze(self):
         path = Path(self.file_path.get().strip())
-        if not path.exists or path.suffix.lower() not in SUPPORTED:
+        if not path.exists() or path.suffix.lower() not in SUPPORTED:
             messagebox.showwarning("Archivo inválido", "Selecciona un PDF o un DOCX")
             return
 
@@ -139,6 +142,8 @@ class AutoCensorView:
         if not text.strip():
             messagebox.showinfo("Sin texto", "No se pudo extraer todo el texto del documento.")
             return
+
+        self._last_text = text
         
         try:
             ents = self.ner.detect(text, use_regex=True, include_email_phone=True)
@@ -153,9 +158,7 @@ class AutoCensorView:
         active = {k for k, v in self.label_vars.items() if v.get()}
         ents = [e for e in ents if e.label in active]
 
-        # Inyectar términos manuales como entidades MISC para controlarlas
-        for term in self.manual_terms:
-            ents.append(DetectedEntity(text=term, start=-1, end=-1, label="MISC", source="manual"))
+        ents.extend(self._manual_matches_as_entities(text))
 
         self.detected = ents
         self._refresh_counts()
@@ -166,7 +169,7 @@ class AutoCensorView:
         if not sel:
             return
         item = self.listbox.get(sel[0])
-        term = item.split(" - ", 1)[0].strip()
+        term = item.split(" — ", 1)[0].strip()
         norm = term if self.case_sensitive.get() else term.lower()
         self.ignored.add(norm)
         self._refresh_counts()
@@ -184,9 +187,8 @@ class AutoCensorView:
             self.manual_terms.append(term)
             self.manual_listbox.insert(tk.END, term)
         self.manual_text.set("")
-        norm = term if self.case_sensitive.get() else term.lower()
-        self.ignored.discard(norm)
-        self._refresh_counts()
+        if self._last_text:
+            self._refresh_after_manual_update()
 
     def remove_manual(self):
         sel = self.manual_listbox.curselection()
@@ -198,11 +200,43 @@ class AutoCensorView:
         except ValueError:
             pass
         self.manual_listbox.delete(sel[0])
-        norm = term if self.case_sensitive.get() else term.lower()
-        self.ignored.discard(norm)
-        self._refresh_counts()
+        if self._last_text:
+            self._refresh_after_manual_update()
 
     # -------- HELPERS --------
+    def _refresh_after_manual_update(self):
+        try:
+            ents = self.ner.detect(self._last_text, use_regex=True, include_email_phone=True)
+            active = {k for k, v in self.label_vars.items() if v.get()}
+            ents = [e for e in ents if e.label in active]
+            ents.extend(self._manual_matches_as_entities(self._last_text))
+            self.detected = ents
+            self._refresh_counts()
+        except Exception:
+            # si algo falla, sólo refresca la lista agrupada con lo que hubiera
+            self._refresh_counts()
+
+    def _manual_matches_as_entities(self, text: str) -> list[DetectedEntity]:
+        """Devuelve entidades MISC creadas a partir de *todas* las coincidencias en el texto
+        para cada término manual. Respeta Case sensitive."""
+        if not self.manual_terms:
+            return []
+        flags = 0 if self.case_sensitive.get() else re.IGNORECASE
+        out: list[DetectedEntity] = []
+        for term in self.manual_terms:
+            if not term:
+                continue
+            try:
+                pat = re.compile(re.escape(term), flags)
+            except re.error:
+                # por si meten algo raro, saltar ese término
+                continue
+            for m in pat.finditer(text):
+                # Usamos el texto tal cual aparece en el documento (casing real)
+                out.append(DetectedEntity(text=m.group(0), start=m.start(), end=m.end(),
+                                          label="MISC", source="manual"))
+        return out
+
     def _read_text(self, path: Path) -> str:
         if path.suffix.lower() == ".docx":
             try:
@@ -233,7 +267,6 @@ class AutoCensorView:
         cs = self.case_sensitive.get()
         norm_fn = (lambda s: s) if cs else (lambda s: s.lower())
 
-        # Contadores y display representativo por norma
         counts: Counter[str] = Counter()
         display_by_norm: dict[str, str] = {}
         label_by_norm: dict[str, str] = {}
@@ -243,13 +276,14 @@ class AutoCensorView:
             if key in self.ignored:
                 continue
             counts[key] += 1
-            display_by_norm.setdefault(key, e.text)
+            display_by_norm.setdefault(key, e.text)   # muestra el primer casing visto
             label_by_norm.setdefault(key, e.label)
 
         for key, n in counts.most_common():
             display = display_by_norm.get(key, key)
             tech = label_by_norm.get(key, "")
             nice = LABEL_NAMES.get(tech, tech) if tech else ""
+            # usa siempre “ — ” como separador
             if nice:
                 self.listbox.insert(tk.END, f"{display} — {nice} (x{n})")
             else:
