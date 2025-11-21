@@ -37,7 +37,7 @@ class AutoCensorView:
         self.ner = NEREngine(lang="es", prefer_small=False)
         self.detected = []
         self.ignored = set()
-        self.manual_terms = set()
+        self.manual_terms: list[str] = []
 
         self._build_ui()
 
@@ -72,6 +72,17 @@ class AutoCensorView:
         tb.Entry(add_row, textvariable=self.manual_text, width=40).pack(side="left")
         tb.Checkbutton(add_row, text="Case sensitive", variable=self.case_sensitive).pack(side="left", padx=8)
         tb.Button(add_row, text="Añadir término", command=self.add_manual).pack(side="left")
+
+        # Lista de términos añadidos manualmente
+        manual_box = tb.Labelframe(frm, text="Textos añadidos", padding=8)
+        manual_box.pack(fill="x", pady=(8, 4))
+        mwrap = tb.Frame(manual_box); mwrap.pack(fill="x")
+        self.manual_listbox = tk.Listbox(mwrap, height=5)
+        self.manual_listbox.pack(side="left", fill="x", expand=True)
+        m_sb = tk.Scrollbar(mwrap, command=self.manual_listbox.yview)
+        self.manual_listbox.configure(yscrollcommand=m_sb.set)
+        m_sb.pack(side="left", fill="y")
+        tb.Button(manual_box, text="Eliminar seleccionado", command=self.remove_manual).pack(anchor="e", pady=(6, 0))
 
         # Lista y conteos
         list_box = tb.Labelframe(frm, text="Términos detectados (agrupados)", padding=8)
@@ -150,8 +161,25 @@ class AutoCensorView:
         term = (self.manual_text.get() or "").strip()
         if not term:
             return
+        # Evitar duplicados exactos
+        if term not in self.manual_terms:
+            self.manual_terms.append(term)
+            self.manual_listbox.insert(tk.END, term)
+        self.manual_text.set("")
+        norm = term if self.case_sensitive.get() else term.lower()
+        self.ignored.discard(norm)
+        self._refresh_counts()
 
-        self.manual_terms.add(term)
+    def remove_manual(self):
+        sel = self.manual_listbox.curselection()
+        if not sel:
+            return
+        term = self.manual_listbox.get(sel[0])
+        try:
+            self.manual_terms.remove(term)
+        except ValueError:
+            pass
+        self.manual_listbox.delete(sel[0])
         norm = term if self.case_sensitive.get() else term.lower()
         self.ignored.discard(norm)
         self._refresh_counts()
