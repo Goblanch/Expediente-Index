@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from pathlib import Path
-from collections import Counter
+from collections import Counter, defaultdict
 
 try:
     import ttkbootstrap as tb
@@ -13,9 +13,27 @@ except Exception:
     PRIMATY = "primary"; SUCCESS = "success"; INFO = "info"
 
 from .nav import back_to_launcher
-from ..nlp.ner import NEREngine
+from ..nlp.ner import NEREngine, DetectedEntity
 
 SUPPORTED = {".pdf", ".docx"}
+
+LABEL_NAMES = {
+    "PERSON": "Persona",
+    "ORG": "Organización",
+    "LOC": "Lugar",
+    "GPE": "Entidad geopolítica",
+    "MISC": "Miscelánea",
+    "DATE": "Fehca",
+    "HORA": "Hora",
+    "NORP": "Grupo/Nacionalidad",
+    "CARDINAL": "Número (cardinal)",
+    "QUANTITY": "Cantidad",
+    "ORDINAL": "Ordinal",
+    "LAW": "Referencia legal",
+    "EMAIL": "Correo electrónico",
+    "PHONE": "Teléfono",
+    "ID_NUMBER": "Documento ID"
+}
 
 class AutoCensorView:
     def __init__(self, root: tk.Tk):
@@ -35,8 +53,8 @@ class AutoCensorView:
         }
 
         self.ner = NEREngine(lang="es", prefer_small=False)
-        self.detected = []
-        self.ignored = set()
+        self.detected: list[DetectedEntity] = []
+        self.ignored: set[str] = set()
         self.manual_terms: list[str] = []
 
         self._build_ui()
@@ -61,8 +79,9 @@ class AutoCensorView:
         ent_box = tb.Labelframe(frm, text="Entidades a detectar", padding=8); ent_box.pack(fill="x", pady=8)
         wrap = tb.Frame(ent_box); wrap.pack(fill="x")
         for i, lbl in enumerate(self.labels):
+            nice = LABEL_NAMES.get(lbl, lbl)
             tb.Checkbutton(
-                wrap, text=lbl, variable=self.label_vars[lbl],
+                wrap, text=f"{nice}", variable=self.label_vars[lbl],
                 bootstyle= SUCCESS if USING_TTKB else None
             ).grid(row=i//5, column=i%5, sticky="w", padx=8, pady=4)
 
@@ -135,8 +154,7 @@ class AutoCensorView:
         ents = [e for e in ents if e.label in active]
 
         # Inyectar términos manuales como entidades MISC para controlarlas
-        for term in sorted(self.manual_terms):
-            from ..nlp.ner import DetectedEntity
+        for term in self.manual_terms:
             ents.append(DetectedEntity(text=term, start=-1, end=-1, label="MISC", source="manual"))
 
         self.detected = ents
@@ -148,7 +166,7 @@ class AutoCensorView:
         if not sel:
             return
         item = self.listbox.get(sel[0])
-        term = item.rsplit(" (x", 1)[0]
+        term = item.split(" - ", 1)[0].strip()
         norm = term if self.case_sensitive.get() else term.lower()
         self.ignored.add(norm)
         self._refresh_counts()
@@ -213,8 +231,26 @@ class AutoCensorView:
     def _refresh_counts(self):
         self.listbox.delete(0, tk.END)
         cs = self.case_sensitive.get()
-        norm = (lambda s: s) if cs else (lambda s: s.lower())
-        # Agrupar por término normalizado y excluir ignorados
-        counts = Counter(norm(e.text) for e in self.detected if norm(e.text) not in self.ignored)
+        norm_fn = (lambda s: s) if cs else (lambda s: s.lower())
+
+        # Contadores y display representativo por norma
+        counts: Counter[str] = Counter()
+        display_by_norm: dict[str, str] = {}
+        label_by_norm: dict[str, str] = {}
+
+        for e in self.detected:
+            key = norm_fn(e.text)
+            if key in self.ignored:
+                continue
+            counts[key] += 1
+            display_by_norm.setdefault(key, e.text)
+            label_by_norm.setdefault(key, e.label)
+
         for key, n in counts.most_common():
-            self.listbox.insert(tk.END, f"{key} (x{n})")
+            display = display_by_norm.get(key, key)
+            tech = label_by_norm.get(key, "")
+            nice = LABEL_NAMES.get(tech, tech) if tech else ""
+            if nice:
+                self.listbox.insert(tk.END, f"{display} — {nice} (x{n})")
+            else:
+                self.listbox.insert(tk.END, f"{display} (x{n})")
